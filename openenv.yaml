@@ -4,12 +4,12 @@ type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
+max_concurrent_envs: 1
 description: >
   SmartOps AI is a production-style customer support environment where an
   autonomous agent must classify tickets, respond safely, request more info,
   escalate specialist cases, resolve routine issues, and protect customer
   satisfaction while meeting SLAs.
-  max_concurrent_envs: 1
 action_space:
   model: smartops_ai_env.models.openenv.SmartOpsAction
   actions:
