@@ -1,0 +1,56 @@
+spec_version: 1
+name: smartops_ai
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+description: >
+  SmartOps AI is a production-style customer support environment where an
+  autonomous agent must classify tickets, respond safely, request more info,
+  escalate specialist cases, resolve routine issues, and protect customer
+  satisfaction while meeting SLAs.
+action_space:
+  model: smartops_ai_env.models.openenv.SmartOpsAction
+  actions:
+    - classify_ticket(category, ticket_id)
+    - respond_to_ticket(message, ticket_id)
+    - escalate_ticket(reason, ticket_id)
+    - resolve_ticket(ticket_id)
+    - request_more_info(question, ticket_id)
+observation_space:
+  model: smartops_ai_env.models.openenv.SmartOpsObservation
+  includes:
+    - focus_ticket
+    - queue_summary
+    - elapsed_minutes
+    - previous_actions
+    - system_metrics
+    - workflow_hint
+reward_range:
+  min: 0.0
+  max: 1.0
+tasks:
+  - id: easy_duplicate_charge_refund
+    difficulty: easy
+    input_scenario: smartops_ai_env.tasks.catalog:get_task("easy_duplicate_charge_refund")
+    expected_behavior:
+      - Classify the ticket as billing.
+      - Respond with a duplicate-charge refund update and timing.
+      - Resolve the ticket without escalation.
+    grader: smartops_ai_env.tasks.graders:grade_easy_duplicate_charge_refund
+  - id: medium_priority_queue_mix
+    difficulty: medium
+    input_scenario: smartops_ai_env.tasks.catalog:get_task("medium_priority_queue_mix")
+    expected_behavior:
+      - Work the delivery ticket first because it is closest to breaching SLA.
+      - Handle all tickets with the right category-specific response.
+      - Resolve every ticket in the queue.
+    grader: smartops_ai_env.tasks.graders:grade_medium_priority_queue_mix
+  - id: hard_account_takeover
+    difficulty: hard
+    input_scenario: smartops_ai_env.tasks.catalog:get_task("hard_account_takeover")
+    expected_behavior:
+      - Classify the mixed-symptom incident as fraud.
+      - Use a safety-first response, ask for verification details, then escalate.
+      - Finish with a correct escalated terminal state.
+    grader: smartops_ai_env.tasks.graders:grade_hard_account_takeover
