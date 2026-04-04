@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 from types import SimpleNamespace
 
 from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
@@ -10,36 +10,28 @@ class SmartOpsEnvironment:
         self._simulator = SmartOpsSimulator(self._config)
         self._initialized = False
 
-    def reset(self) -> Tuple[Dict[str, Any], float, bool, Dict[str, Any]]:
-        """Reset environment and start new episode"""
+    def reset(self):
         observation = self._simulator.reset()
         self._initialized = True
-
-        return observation, 0.0, False, {}
+        return observation
 
     def step(self, action: Dict[str, Any], timeout_s=None, **kwargs):
-        """Take a step in environment"""
         del timeout_s, kwargs
 
-        # Ensure reset is called first
         if not self._initialized:
             observation = self._simulator.reset()
             self._initialized = True
-            return observation, 0.0, False, {"warning": "auto-reset triggered"}
+            return observation
 
         try:
             action_obj = SimpleNamespace(**action)
-            observation, reward, done, info = self._simulator.step(action_obj)
+            observation, _, _, _ = self._simulator.step(action_obj)
 
         except Exception as e:
             print("SIMULATOR ERROR:", str(e))
             observation = self._simulator.reset()
-            reward = 0.0
-            done = False
-            info = {"error": str(e)}
 
-        return observation, reward, done, info
+        return observation
 
-    def state(self) -> Dict[str, Any]:
-        """Return full internal state"""
+    def state(self):
         return self._simulator.get_state()
