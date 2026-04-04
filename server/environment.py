@@ -74,3 +74,9 @@ class SmartOpsEnvironment:
         except Exception as e:
             print("STATE ERROR:", str(e))
             return {"error": str(e)}
+        
+    async def reset_async(self):
+        return self.reset()
+
+    async def step_async(self, action):
+        return self.step(action)
