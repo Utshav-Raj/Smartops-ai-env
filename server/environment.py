@@ -5,11 +5,12 @@ from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
 
 
 class SmartOpsEnvironment:
+    SUPPORTS_CONCURRENT_SESSIONS = False
+
     def __init__(self):
         self._config = SmartOpsConfig()
         self._simulator = SmartOpsSimulator(self._config)
         self._initialized = False
-
     def reset(self):
         observation = self._simulator.reset()
         self._initialized = True
