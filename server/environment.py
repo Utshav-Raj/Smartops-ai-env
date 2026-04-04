@@ -52,7 +52,10 @@ class SmartOpsEnvironment(Environment[SmartOpsAction, SmartOpsObservation, Suppo
         **kwargs,
     ) -> SmartOpsObservation:
         del timeout_s, kwargs
-        observation, _, _, _ = self._simulator.step(action)
+        from types import SimpleNamespace
+
+        action_obj = SimpleNamespace(**action)
+        observation, _, _, _ = self._simulator.step(action_obj)
         return observation
 
     @property
