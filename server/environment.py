@@ -1,76 +1,48 @@
-"""OpenEnv server wrapper around the SmartOps simulator."""
+from typing import Any, Dict, Tuple
+from types import SimpleNamespace
 
-from __future__ import annotations
-
-from openenv.core.env_server.interfaces import Environment
-from openenv.core.env_server.types import EnvironmentMetadata
-
-try:
-    from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
-    from smartops_ai_env.models import SmartOpsAction, SmartOpsObservation, SupportState
-except ModuleNotFoundError:  # pragma: no cover
-    import sys
-    from pathlib import Path
-
-    ROOT = Path(__file__).resolve().parents[2]
-    if str(ROOT.parent) not in sys.path:
-        sys.path.insert(0, str(ROOT.parent))
-
-    from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
-    from smartops_ai_env.models import SmartOpsAction, SmartOpsObservation, SupportState
+from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
 
 
-class SmartOpsEnvironment(Environment[SmartOpsAction, SmartOpsObservation, SupportState]):
-    """OpenEnv-compatible environment for autonomous support operations."""
+class SmartOpsEnvironment:
+    def __init__(self):
+        self._config = SmartOpsConfig()
+        self._simulator = SmartOpsSimulator(self._config)
+        self._initialized = False
 
-    SUPPORTS_CONCURRENT_SESSIONS: bool = True
+    def reset(self) -> Tuple[Dict[str, Any], float, bool, Dict[str, Any]]:
+        """Reset environment and start new episode"""
+        observation = self._simulator.reset()
+        self._initialized = True
 
-    def __init__(self, config: SmartOpsConfig | None = None):
-        super().__init__()
-        self._simulator = SmartOpsSimulator(config=config or SmartOpsConfig())
+        return observation, 0.0, False, {}
 
-    def reset(
-        self,
-        seed: int | None = None,
-        episode_id: str | None = None,
-        task_id: str | None = None,
-        difficulty: str | None = None,
-        **kwargs,
-    ) -> SmartOpsObservation:
-        return self._simulator.reset(
-            task_id=task_id,
-            difficulty=difficulty,
-            seed=seed,
-            episode_id=episode_id,
-            **kwargs,
-        )
-
-    def step(
-        self,
-        action: SmartOpsAction,
-        timeout_s: float | None = None,
-        **kwargs,
-    ) -> SmartOpsObservation:
+    def step(self, action: Dict[str, Any], timeout_s=None, **kwargs):
+        """Take a step in environment"""
         del timeout_s, kwargs
-        from types import SimpleNamespace
 
-        action_obj = SimpleNamespace(**action)
-        observation, _, _, _ = self._simulator.step(action_obj)
-        return observation
+        # Ensure reset is called first
+        if not self._initialized:
+            observation = self._simulator.reset()
+            self._initialized = True
+            return observation, 0.0, False, {"warning": "auto-reset triggered"}
 
-    @property
-    def state(self) -> SupportState:
-        return self._simulator.state()
+        try:
+            # Convert dict → object (VERY IMPORTANT FIX)
+            action_obj = SimpleNamespace(**action)
 
-    def get_metadata(self) -> EnvironmentMetadata:
-        return EnvironmentMetadata(
-            name="SmartOps AI",
-            description=(
-                "Autonomous customer support and ticket-resolution benchmark with "
-                "typed actions, dense reward shaping, deterministic tasks, and "
-                "support-specific grading."
-            ),
-            version="0.1.0",
-            author="OpenAI Codex",
-            documentation_url="https://huggingface.co/spaces/openenv",
-        )
+            observation, reward, done, info = self._simulator.step(action_obj)
+
+        except Exception as e:
+            print("SIMULATOR ERROR:", str(e))
+
+            observation = self._simulator.get_observation()
+            reward = 0.0
+            done = False
+            info = {"error": str(e)}
+
+        return observation, reward, done, info
+
+    def state(self) -> Dict[str, Any]:
+        """Return full internal state"""
+        return self._simulator.get_state()
