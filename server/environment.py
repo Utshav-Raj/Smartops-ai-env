@@ -28,15 +28,12 @@ class SmartOpsEnvironment:
             return observation, 0.0, False, {"warning": "auto-reset triggered"}
 
         try:
-            # Convert dict → object (VERY IMPORTANT FIX)
             action_obj = SimpleNamespace(**action)
-
             observation, reward, done, info = self._simulator.step(action_obj)
 
         except Exception as e:
             print("SIMULATOR ERROR:", str(e))
-
-            observation = self._simulator.get_observation()
+            observation = self._simulator.reset()
             reward = 0.0
             done = False
             info = {"error": str(e)}
