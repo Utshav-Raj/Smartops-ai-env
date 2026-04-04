@@ -5,7 +5,7 @@ from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
 
 
 class SmartOpsEnvironment:
-    SUPPORTS_CONCURRENT_SESSIONS = False
+    SUPPORTS_CONCURRENT_SESSIONS = True
 
     def __init__(self):
         self._config = SmartOpsConfig()
