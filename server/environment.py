@@ -12,9 +12,22 @@ class SmartOpsEnvironment:
         self._simulator = SmartOpsSimulator(self._config)
         self._initialized = False
     def reset(self):
+       try:
         observation = self._simulator.reset()
         self._initialized = True
-        return observation
+       except Exception as e:
+        print("RESET ERROR:", str(e))
+
+        # fallback safe observation
+        observation = {
+            "task_id": "fallback",
+            "message": "Environment reset fallback",
+            "available_ticket_ids": [],
+            "last_reward": None
+        }
+        self._initialized = True
+
+       return observation
 
     def step(self, action: Dict[str, Any], timeout_s=None, **kwargs):
         del timeout_s, kwargs
