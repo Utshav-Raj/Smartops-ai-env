@@ -80,3 +80,7 @@ class SmartOpsEnvironment:
 
     async def step_async(self, action):
         return self.step(action)
+    
+    def close(self):
+        """Cleanup environment (required by OpenEnv)"""
+        pass
