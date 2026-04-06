@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from fastapi.responses import HTMLResponse
+
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as exc:  # pragma: no cover
@@ -24,13 +26,75 @@ except ModuleNotFoundError:  # pragma: no cover
     from smartops_ai_env.server.environment import SmartOpsEnvironment
 
 
+# ✅ IMPORTANT: set concurrency to 1
 app = create_app(
     SmartOpsEnvironment,
     SmartOpsAction,
     SmartOpsObservation,
     env_name="smartops_ai_env",
-    max_concurrent_envs=4,
+    max_concurrent_envs=1,
 )
+
+
+# ✅ UI ROUTE (added properly)
+@app.get("/", response_class=HTMLResponse)
+@app.get("/web", response_class=HTMLResponse)
+async def web_ui():
+    return """
+    <html>
+    <head>
+        <title>SmartOps AI Dashboard</title>
+        <style>
+            body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+            h1 { color: #333; }
+            button { padding: 10px; margin: 5px; }
+            input { padding: 8px; margin: 5px; }
+            pre { background: #000; color: #0f0; padding: 10px; }
+        </style>
+    </head>
+    <body>
+
+        <h1>🚀 SmartOps AI Environment</h1>
+
+        <button onclick="resetEnv()">🔄 Reset</button>
+
+        <br><br>
+
+        <input id="ticket" placeholder="Ticket ID (B-1001)" />
+        <input id="category" placeholder="Category (billing)" />
+        <button onclick="stepEnv()">▶️ Step</button>
+
+        <h3>📊 Response:</h3>
+        <pre id="output">Waiting...</pre>
+
+        <script>
+            async function resetEnv() {
+                const res = await fetch('/reset', { method: 'POST' });
+                const data = await res.json();
+                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+            }
+
+            async function stepEnv() {
+                const res = await fetch('/step', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: {
+                            action_type: "classify_ticket",
+                            category: document.getElementById('category').value,
+                            ticket_id: document.getElementById('ticket').value
+                        }
+                    })
+                });
+
+                const data = await res.json();
+                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+            }
+        </script>
+
+    </body>
+    </html>
+    """
 
 
 def main(host: str | None = None, port: int | None = None) -> None:
@@ -54,55 +118,3 @@ def main(host: str | None = None, port: int | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-from fastapi.responses import HTMLResponse
-
-@app.get("/web", response_class=HTMLResponse)
-async def web_ui():
-    return """
-    <html>
-    <head>
-        <title>SmartOps AI UI</title>
-    </head>
-    <body style="font-family: Arial; padding: 20px;">
-        <h1>🚀 SmartOps AI Environment</h1>
-
-        <button onclick="resetEnv()">Reset</button>
-        <br><br>
-
-        <input id="ticket" placeholder="Ticket ID (e.g. B-1001)" />
-        <input id="category" placeholder="Category (billing)" />
-        <button onclick="stepEnv()">Step</button>
-
-        <h3>Response:</h3>
-        <pre id="output"></pre>
-
-        <script>
-            async function resetEnv() {
-                const res = await fetch('/reset', { method: 'POST' });
-                const data = await res.json();
-                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-            }
-
-            async function stepEnv() {
-                const ticket = document.getElementById('ticket').value;
-                const category = document.getElementById('category').value;
-
-                const res = await fetch('/step', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: {
-                            action_type: "classify_ticket",
-                            category: category,
-                            ticket_id: ticket
-                        }
-                    })
-                });
-
-                const data = await res.json();
-                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-            }
-        </script>
-    </body>
-    </html>
-    """
