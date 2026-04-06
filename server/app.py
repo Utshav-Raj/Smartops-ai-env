@@ -61,7 +61,12 @@ async def web_ui():
         <br><br>
 
         <input id="ticket" placeholder="Ticket ID (B-1001)" />
-        <input id="category" placeholder="Category (billing)" />
+        <select id="category">
+    <option value="billing" selected>billing</option>
+    <option value="technical">technical</option>
+    <option value="delivery">delivery</option>
+    <option value="fraud">fraud</option>
+</select>
         <button onclick="stepEnv()">▶️ Step</button>
 
         <h3>📊 Response:</h3>
