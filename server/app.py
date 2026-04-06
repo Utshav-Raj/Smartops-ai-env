@@ -54,3 +54,55 @@ def main(host: str | None = None, port: int | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+from fastapi.responses import HTMLResponse
+
+@app.get("/web", response_class=HTMLResponse)
+async def web_ui():
+    return """
+    <html>
+    <head>
+        <title>SmartOps AI UI</title>
+    </head>
+    <body style="font-family: Arial; padding: 20px;">
+        <h1>🚀 SmartOps AI Environment</h1>
+
+        <button onclick="resetEnv()">Reset</button>
+        <br><br>
+
+        <input id="ticket" placeholder="Ticket ID (e.g. B-1001)" />
+        <input id="category" placeholder="Category (billing)" />
+        <button onclick="stepEnv()">Step</button>
+
+        <h3>Response:</h3>
+        <pre id="output"></pre>
+
+        <script>
+            async function resetEnv() {
+                const res = await fetch('/reset', { method: 'POST' });
+                const data = await res.json();
+                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+            }
+
+            async function stepEnv() {
+                const ticket = document.getElementById('ticket').value;
+                const category = document.getElementById('category').value;
+
+                const res = await fetch('/step', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: {
+                            action_type: "classify_ticket",
+                            category: category,
+                            ticket_id: ticket
+                        }
+                    })
+                });
+
+                const data = await res.json();
+                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+            }
+        </script>
+    </body>
+    </html>
+    """
