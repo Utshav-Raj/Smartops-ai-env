@@ -41,65 +41,126 @@ app = create_app(
 @app.get("/web", response_class=HTMLResponse)
 async def web_ui():
     return """
-    <html>
-    <head>
-        <title>SmartOps AI Dashboard</title>
-        <style>
-            body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-            h1 { color: #333; }
-            button { padding: 10px; margin: 5px; }
-            input { padding: 8px; margin: 5px; }
-            pre { background: #000; color: #0f0; padding: 10px; }
-        </style>
-    </head>
-    <body>
+<html>
+<head>
+    <title>SmartOps AI Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 30px;
+        }
 
-        <h1>🚀 SmartOps AI Environment</h1>
+        h1 {
+            color: #38bdf8;
+        }
 
-        <button onclick="resetEnv()">🔄 Reset</button>
+        .card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
 
-        <br><br>
+        input, select {
+            padding: 10px;
+            margin: 8px;
+            border-radius: 6px;
+            border: none;
+            width: 200px;
+        }
 
-        <input id="ticket" placeholder="Ticket ID (B-1001)" />
+        button {
+            padding: 10px 15px;
+            margin: 8px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            background: #38bdf8;
+            color: black;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #0ea5e9;
+        }
+
+        .reset-btn {
+            background: #22c55e;
+        }
+
+        .reset-btn:hover {
+            background: #16a34a;
+        }
+
+        pre {
+            background: #020617;
+            padding: 15px;
+            border-radius: 10px;
+            color: #22c55e;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🚀 SmartOps AI Dashboard</h1>
+
+    <div class="card">
+        <h3>⚙️ Controls</h3>
+
+        <button class="reset-btn" onclick="resetEnv()">🔄 Reset Environment</button>
+
+        <br>
+
+        <input id="ticket" value="B-1001" />
+
         <select id="category">
-    <option value="billing" selected>billing</option>
-    <option value="technical">technical</option>
-    <option value="delivery">delivery</option>
-    <option value="fraud">fraud</option>
-</select>
-        <button onclick="stepEnv()">▶️ Step</button>
+            <option value="billing" selected>billing</option>
+            <option value="technical">technical</option>
+            <option value="delivery">delivery</option>
+            <option value="fraud">fraud</option>
+        </select>
 
-        <h3>📊 Response:</h3>
-        <pre id="output">Waiting...</pre>
+        <button onclick="stepEnv()">▶️ Run Step</button>
+    </div>
 
-        <script>
-            async function resetEnv() {
-                const res = await fetch('/reset', { method: 'POST' });
-                const data = await res.json();
-                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-            }
+    <div class="card">
+        <h3>📊 Environment Response</h3>
+        <pre id="output">Click reset to start...</pre>
+    </div>
 
-            async function stepEnv() {
-                const res = await fetch('/step', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: {
-                            action_type: "classify_ticket",
-                            category: document.getElementById('category').value,
-                            ticket_id: document.getElementById('ticket').value
-                        }
-                    })
-                });
+<script>
+    async function resetEnv() {
+        const res = await fetch('/reset', { method: 'POST' });
+        const data = await res.json();
+        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+    }
 
-                const data = await res.json();
-                document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-            }
-        </script>
+    async function stepEnv() {
+        const res = await fetch('/step', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: {
+                    action_type: "classify_ticket",
+                    category: document.getElementById('category').value,
+                    ticket_id: document.getElementById('ticket').value
+                }
+            })
+        });
 
-    </body>
-    </html>
-    """
+        const data = await res.json();
+        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+    }
+</script>
+
+</body>
+</html>
+"""
 
 
 def main(host: str | None = None, port: int | None = None) -> None:
