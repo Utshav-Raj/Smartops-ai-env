@@ -87,8 +87,14 @@ class SmartOpsSimulator:
                     selected_task_id = task.task_id
                     break
 
+        import random
+
         if selected_task_id is None:
-            selected_task_id = self.config.default_task_id
+            selected_task_id = random.choice([
+            "easy_duplicate_charge_refund",
+            "medium_priority_queue_mix",
+            "hard_account_takeover",
+    ])
 
         task = get_task(selected_task_id)
         actual_seed = seed if seed is not None else task.seed
