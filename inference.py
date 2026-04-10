@@ -6,15 +6,12 @@ from openai import OpenAI
 # CONFIG
 # ----------------------------
 API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
-API_KEY = os.getenv("HF_TOKEN")  # Required by OpenEnv criteria
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")  # Required by OpenEnv criteria
-
-if not API_BASE or not API_KEY or not MODEL_NAME:
-    pass
+API_KEY = os.getenv("API_KEY", os.getenv("HF_TOKEN", "dummy_key"))
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 
 client = OpenAI(
     base_url=API_BASE,
-    api_key=API_KEY or "dummy_key_for_test"
+    api_key=API_KEY
 )
 
 # ----------------------------
