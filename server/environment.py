@@ -1,6 +1,3 @@
-from typing import Any, Dict
-from types import SimpleNamespace
-
 from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
 
 
@@ -19,9 +16,11 @@ class SmartOpsEnvironment:
         try:
             observation = self._simulator.reset()
 
-            # 🔥 ensure it is dict (safe)
+            # 🔥 FORCE JSON SAFE
             if hasattr(observation, "model_dump"):
                 observation = observation.model_dump()
+            elif hasattr(observation, "dict"):
+                observation = observation.dict()
 
             self._initialized = True
             return observation
@@ -29,10 +28,9 @@ class SmartOpsEnvironment:
         except Exception as e:
             print("RESET ERROR:", str(e))
 
-            # 🔥 SAFE FALLBACK (prevents crash)
             return {
                 "error": str(e),
-                "status": "reset_failed_but_safe"
+                "fallback": True
             }
     # -------------------------
     # STEP
@@ -44,8 +42,11 @@ class SmartOpsEnvironment:
             action_obj = SimpleNamespace(**action)
             observation, reward, done, info = self._simulator.step(action_obj)
 
+            # 🔥 FORCE JSON SAFE
             if hasattr(observation, "model_dump"):
                 observation = observation.model_dump()
+            elif hasattr(observation, "dict"):
+                observation = observation.dict()
 
             return observation, reward, done, info
 

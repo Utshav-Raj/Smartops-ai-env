@@ -47,7 +47,6 @@ def grade_hard_account_takeover(state: Dict[str, Any]) -> TaskGrade:
     t = next((x for x in tickets if x["id"] == "F-3001"), None)
     if not t:
         return TaskGrade(task_id="hard_account_takeover", score=0.0, feedback="Ticket not found.")
-    history = state.get("action_history", [])
     breakdown = {}
     breakdown["fraud_classified"] = 0.30 if t.get("predicted_category") == "fraud" else 0.0
     breakdown["info_requested"] = 0.25 if t.get("info_requested") else 0.0
