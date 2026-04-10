@@ -1,10 +1,11 @@
 from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
+from openenv.core import Environment
 
-
-class SmartOpsEnvironment:
+class SmartOpsEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = False  # 🔥 IMPORTANT
 
     def __init__(self):
+        super().__init__()
         self._config = SmartOpsConfig()
         self._simulator = SmartOpsSimulator(self._config)
         self._initialized = False
@@ -12,53 +13,28 @@ class SmartOpsEnvironment:
     # -------------------------
     # RESET
     # -------------------------
-    def reset(self):
+    def reset(self, seed=None, episode_id=None, **kwargs):
         try:
             observation = self._simulator.reset()
-
-            # 🔥 FORCE JSON SAFE
-            if hasattr(observation, "model_dump"):
-                observation = observation.model_dump()
-            elif hasattr(observation, "dict"):
-                observation = observation.dict()
-
             self._initialized = True
             return observation
-
         except Exception as e:
             print("RESET ERROR:", str(e))
-
-            return {
-                "error": str(e),
-                "fallback": True
-            }
+            raise e
     # -------------------------
     # STEP
     # -------------------------
     def step(self, action, timeout_s=None, **kwargs):
-        from types import SimpleNamespace
-
         try:
-            action_obj = SimpleNamespace(**action)
-            observation, reward, done, info = self._simulator.step(action_obj)
-
-            # 🔥 FORCE JSON SAFE
-            if hasattr(observation, "model_dump"):
-                observation = observation.model_dump()
-            elif hasattr(observation, "dict"):
-                observation = observation.dict()
-
+            observation, reward, done, info = self._simulator.step(action)
             return observation, reward, done, info
-
         except Exception as e:
             print("STEP ERROR:", str(e))
-
-            return {
-                "error": str(e)
-            }, 0.0, False, {}
+            raise e
     # -------------------------
     # STATE
     # -------------------------
+    @property
     def state(self):
         try:
             return self._simulator.get_state()

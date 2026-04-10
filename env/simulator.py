@@ -24,7 +24,7 @@ class SmartOpsSimulator:
         self._step_count: int = 0
         self._task_id: str = "easy_duplicate_charge_refund"
 
-    def reset(self, task_id: Optional[str] = None) -> Dict[str, Any]:
+    def reset(self, task_id: Optional[str] = None) -> SmartOpsObservation:
         if task_id is None:
             task_id = self._task_id
         self._task_id = task_id
@@ -39,9 +39,9 @@ class SmartOpsSimulator:
             done=False,
         )
         self._step_count = 0
-        return self._build_obs(None).model_dump()
+        return self._build_obs(None)
 
-    def step(self, action: Any) -> Tuple[Dict[str, Any], float, bool, Dict[str, Any]]:
+    def step(self, action: Any) -> Tuple[SmartOpsObservation, float, bool, Dict[str, Any]]:
         if self._state is None:
             self.reset()
         self._step_count += 1
@@ -64,7 +64,7 @@ class SmartOpsSimulator:
             t.resolved or t.escalated for t in self._state.tickets
         )
         self._state.done = done
-        return self._build_obs(reward).model_dump(), reward, done, {}
+        return self._build_obs(reward), reward, done, {}
 
     def get_state(self) -> Dict[str, Any]:
         if self._state is None:
