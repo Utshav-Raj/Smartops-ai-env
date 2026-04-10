@@ -18,41 +18,43 @@ class SmartOpsEnvironment:
     def reset(self):
         try:
             observation = self._simulator.reset()
+
+            # 🔥 ensure it is dict (safe)
+            if hasattr(observation, "model_dump"):
+                observation = observation.model_dump()
+
             self._initialized = True
-            return observation  # ✅ ONLY observation (CRITICAL)
+            return observation
+
         except Exception as e:
-            print("RESET ERROR:", e)
-            return {}
+            print("RESET ERROR:", str(e))
 
-    async def reset_async(self):
-        return self.reset()
-
+            # 🔥 SAFE FALLBACK (prevents crash)
+            return {
+                "error": str(e),
+                "status": "reset_failed_but_safe"
+            }
     # -------------------------
     # STEP
     # -------------------------
-    def step(self, action: Dict[str, Any], timeout_s=None, **kwargs):
-        del timeout_s, kwargs
-
-        if not self._initialized:
-            observation = self._simulator.reset()
-            self._initialized = True
-            return observation, 0.0, False, {"warning": "auto-reset"}
+    def step(self, action, timeout_s=None, **kwargs):
+        from types import SimpleNamespace
 
         try:
             action_obj = SimpleNamespace(**action)
             observation, reward, done, info = self._simulator.step(action_obj)
+
+            if hasattr(observation, "model_dump"):
+                observation = observation.model_dump()
+
+            return observation, reward, done, info
+
         except Exception as e:
-            print("STEP ERROR:", e)
-            observation = self._simulator.reset()
-            reward = 0.0
-            done = False
-            info = {"error": str(e)}
+            print("STEP ERROR:", str(e))
 
-        return observation, reward, done, info
-
-    async def step_async(self, action, timeout_s=None, **kwargs):
-        return self.step(action, timeout_s, **kwargs)
-
+            return {
+                "error": str(e)
+            }, 0.0, False, {}
     # -------------------------
     # STATE
     # -------------------------
