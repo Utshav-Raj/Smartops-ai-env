@@ -1,189 +1,62 @@
-"""Deterministic graders for SmartOps benchmark tasks."""
-
 from __future__ import annotations
+from typing import Any, Dict
+from ..models.openenv import TaskGrade
 
-from collections import defaultdict
+def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> TaskGrade:
+    tickets = state.get("tickets", [])
+    t = next((x for x in tickets if x["id"] == "B-1001"), None)
+    if not t:
+        return TaskGrade(task_id="easy_duplicate_charge_refund", score=0.0, feedback="Ticket not found.")
+    history = state.get("action_history", [])
+    score, breakdown = 0.0, {}
+    classified = any(a["action_type"] == "classify_ticket" and a["ticket_id"] == "B-1001" for a in history)
+    breakdown["classified"] = 0.25 if classified else 0.0
+    correct_cat = t.get("predicted_category") == "billing"
+    breakdown["correct_category"] = 0.25 if correct_cat else 0.0
+    responded = t.get("response_sent", False)
+    breakdown["responded"] = 0.25 if responded else 0.0
+    resolved = t.get("resolved", False)
+    breakdown["resolved"] = 0.25 if resolved else 0.0
+    no_escalation = not t.get("escalated", False)
+    if not no_escalation:
+        breakdown["resolved"] = 0.0
+    score = sum(breakdown.values())
+    return TaskGrade(task_id="easy_duplicate_charge_refund", score=round(score, 4),
+                     breakdown=breakdown, feedback="Easy task graded.")
 
-from smartops_ai_env.env.scoring import keyword_group_coverage
-from smartops_ai_env.models import SupportState, TaskGrade, TicketStatus
-from smartops_ai_env.tasks.catalog import get_task
+def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> TaskGrade:
+    tickets = {t["id"]: t for t in state.get("tickets", [])}
+    history = state.get("action_history", [])
+    breakdown = {}
+    # All resolved
+    all_resolved = all(t.get("resolved") for t in tickets.values())
+    breakdown["all_resolved"] = 0.40 if all_resolved else sum(0.13 for t in tickets.values() if t.get("resolved"))
+    # Correct categories
+    correct = sum(1 for tid, cat in [("D-2001","delivery"),("B-2002","billing"),("T-2003","technical")]
+                  if tickets.get(tid, {}).get("predicted_category") == cat)
+    breakdown["correct_categories"] = round(correct / 3 * 0.30, 4)
+    # Delivery worked first (first action should target D-2001)
+    first_delivery = history[0]["ticket_id"] == "D-2001" if history else False
+    breakdown["delivery_prioritised"] = 0.30 if first_delivery else 0.0
+    score = sum(breakdown.values())
+    return TaskGrade(task_id="medium_priority_queue_mix", score=round(min(1.0, score), 4),
+                     breakdown=breakdown, feedback="Medium task graded.")
 
-
-def _history_by_ticket(state: SupportState) -> dict[str, list]:
-    grouped = defaultdict(list)
-    for record in state.action_history:
-        grouped[record.ticket_id].append(record)
-    return grouped
-
-
-def grade_easy_duplicate_charge_refund(state: SupportState) -> TaskGrade:
-    task = get_task("easy_duplicate_charge_refund")
-    ticket = state.tickets[0]
-    history = _history_by_ticket(state).get(ticket.id, [])
-
-    classification = 1.0 if ticket.predicted_category == ticket.category else 0.0
-    response_texts = [record.summary for record in history if record.action_type.value == "respond_to_ticket"]
-    response_score = 0.0
-    if response_texts:
-        best = max(
-            keyword_group_coverage(text, ticket.expected_response_groups)[0]
-            for text in response_texts
-        )
-        response_score = round(best, 4)
-    resolution = 1.0 if ticket.status == TicketStatus.RESOLVED else 0.0
-    no_escalation = 1.0 if ticket.status != TicketStatus.ESCALATED else 0.0
-
-    criteria = {
-        "classification": classification,
-        "helpful_response": response_score,
-        "resolved": resolution,
-        "avoided_unnecessary_escalation": no_escalation,
-    }
-    score = round(sum(criteria.values()) / len(criteria), 4)
-    notes = []
-    if classification == 0.0:
-        notes.append("Billing classification was missed.")
-    if response_score < 1.0:
-        notes.append("Response did not fully mention refund handling and timing.")
-    if resolution == 0.0:
-        notes.append("Ticket was not fully resolved.")
-
-    return TaskGrade(
-        task_id=task.task_id,
-        score=score,
-        passed=score >= 0.85,
-        criteria=criteria,
-        notes=notes or ["Duplicate-charge ticket handled correctly."],
-    )
-
-
-def grade_medium_priority_queue_mix(state: SupportState) -> TaskGrade:
-    task = get_task("medium_priority_queue_mix")
-    history_map = _history_by_ticket(state)
-    tickets = {ticket.id: ticket for ticket in state.tickets}
-
-    classification_scores = []
-    response_scores = []
-    resolution_scores = []
-    first_touch_order = []
-    seen = set()
-
-    for record in state.action_history:
-        if record.ticket_id not in seen:
-            first_touch_order.append(record.ticket_id)
-            seen.add(record.ticket_id)
-
-    for ticket in state.tickets:
-        classification_scores.append(1.0 if ticket.predicted_category == ticket.category else 0.0)
-        ticket_history = history_map.get(ticket.id, [])
-        response_texts = [record.summary for record in ticket_history if record.action_type.value == "respond_to_ticket"]
-        if response_texts:
-            best = max(
-                keyword_group_coverage(text, ticket.expected_response_groups)[0]
-                for text in response_texts
-            )
-        else:
-            best = 0.0
-        response_scores.append(round(best, 4))
-        resolution_scores.append(1.0 if ticket.status == TicketStatus.RESOLVED else 0.0)
-
-    priority_match = 0.0
-    if first_touch_order:
-        expected_prefix = task.priority_order[: len(first_touch_order)]
-        matches = sum(1 for actual, expected in zip(first_touch_order, expected_prefix) if actual == expected)
-        priority_match = round(matches / len(task.priority_order), 4)
-
-    criteria = {
-        "classification_accuracy": round(sum(classification_scores) / len(classification_scores), 4),
-        "response_quality": round(sum(response_scores) / len(response_scores), 4),
-        "queue_prioritization": priority_match,
-        "resolution_completion": round(sum(resolution_scores) / len(resolution_scores), 4),
-    }
-    score = round(sum(criteria.values()) / len(criteria), 4)
-    notes = []
-    if priority_match < 1.0:
-        notes.append("Queue was not worked in the expected urgency/SLA order.")
-    if criteria["resolution_completion"] < 1.0:
-        open_ids = [ticket.id for ticket in tickets.values() if ticket.status != TicketStatus.RESOLVED]
-        notes.append(f"Some medium task tickets were not resolved: {', '.join(open_ids)}")
-
-    return TaskGrade(
-        task_id=task.task_id,
-        score=score,
-        passed=score >= 0.8,
-        criteria=criteria,
-        notes=notes or ["Mixed queue handled with solid prioritization and resolution quality."],
-    )
-
-
-def grade_hard_account_takeover(state: SupportState) -> TaskGrade:
-    task = get_task("hard_account_takeover")
-    ticket = state.tickets[0]
-    history = _history_by_ticket(state).get(ticket.id, [])
-
-    classification = 1.0 if ticket.predicted_category == ticket.category else 0.0
-
-    response_texts = [record.summary for record in history if record.action_type.value == "respond_to_ticket"]
-    response_score = 0.0
-    if response_texts:
-        response_score = round(
-            max(keyword_group_coverage(text, ticket.expected_response_groups)[0] for text in response_texts),
-            4,
-        )
-
-    info_requests = [record.summary for record in history if record.action_type.value == "request_more_info"]
-    info_score = 0.0
-    if info_requests:
-        info_score = round(
-            max(keyword_group_coverage(text, ticket.expected_info_request_groups)[0] for text in info_requests),
-            4,
-        )
-
-    escalation_reasons = [record.summary for record in history if record.action_type.value == "escalate_ticket"]
-    escalation_score = 0.0
-    if escalation_reasons:
-        escalation_score = round(
-            max(keyword_group_coverage(text, ticket.expected_escalation_groups)[0] for text in escalation_reasons),
-            4,
-        )
-
-    multi_turn = 1.0 if ticket.follow_up_revealed and ticket.info_requested else 0.0
-    final_status = 1.0 if ticket.status == TicketStatus.ESCALATED else 0.0
-
-    criteria = {
-        "classification": classification,
-        "safety_response": response_score,
-        "information_gathering": info_score,
-        "multi_turn_handling": multi_turn,
-        "escalation_quality": escalation_score,
-        "final_status": final_status,
-    }
-    score = round(sum(criteria.values()) / len(criteria), 4)
-    notes = []
-    if final_status == 0.0:
-        notes.append("Fraud incident was not escalated to a terminal escalated state.")
-    if info_score < 1.0:
-        notes.append("Missing verification details before handoff.")
-    if response_score < 1.0:
-        notes.append("Safety-focused response did not cover account protection steps.")
-
-    return TaskGrade(
-        task_id=task.task_id,
-        score=score,
-        passed=score >= 0.8,
-        criteria=criteria,
-        notes=notes or ["Account takeover was triaged, verified, and escalated correctly."],
-    )
-
-
-def grade_task(task_id: str, state: SupportState) -> TaskGrade:
-    """Dispatch to the deterministic task grader."""
-
-    graders = {
-        "easy_duplicate_charge_refund": grade_easy_duplicate_charge_refund,
-        "medium_priority_queue_mix": grade_medium_priority_queue_mix,
-        "hard_account_takeover": grade_hard_account_takeover,
-    }
-    if task_id not in graders:
-        raise KeyError(f"No grader registered for task_id={task_id}")
-    return graders[task_id](state)
+def grade_hard_account_takeover(state: Dict[str, Any]) -> TaskGrade:
+    tickets = state.get("tickets", [])
+    t = next((x for x in tickets if x["id"] == "F-3001"), None)
+    if not t:
+        return TaskGrade(task_id="hard_account_takeover", score=0.0, feedback="Ticket not found.")
+    history = state.get("action_history", [])
+    breakdown = {}
+    breakdown["fraud_classified"] = 0.30 if t.get("predicted_category") == "fraud" else 0.0
+    breakdown["info_requested"] = 0.25 if t.get("info_requested") else 0.0
+    breakdown["escalated"] = 0.30 if t.get("escalated") else 0.0
+    # Penalise if resolved without escalation (dangerous)
+    if t.get("resolved") and not t.get("escalated"):
+        breakdown["escalated"] = -0.20
+    responded = t.get("response_sent", False)
+    breakdown["responded_safely"] = 0.15 if responded else 0.0
+    score = sum(breakdown.values())
+    return TaskGrade(task_id="hard_account_takeover", score=round(max(0.0, min(1.0, score)), 4),
+                     breakdown=breakdown, feedback="Hard task graded.")
