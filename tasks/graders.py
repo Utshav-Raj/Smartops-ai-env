@@ -21,7 +21,8 @@ def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> TaskGrade:
     if not no_escalation:
         breakdown["resolved"] = 0.0
     score = sum(breakdown.values())
-    return TaskGrade(task_id="easy_duplicate_charge_refund", score=round(score, 4),
+    clamped_score = max(0.01, min(0.99, score))
+    return TaskGrade(task_id="easy_duplicate_charge_refund", score=round(clamped_score, 4),
                      breakdown=breakdown, feedback="Easy task graded.")
 
 def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> TaskGrade:
@@ -39,7 +40,8 @@ def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> TaskGrade:
     first_delivery = history[0]["ticket_id"] == "D-2001" if history else False
     breakdown["delivery_prioritised"] = 0.30 if first_delivery else 0.0
     score = sum(breakdown.values())
-    return TaskGrade(task_id="medium_priority_queue_mix", score=round(min(1.0, score), 4),
+    clamped_score = max(0.01, min(0.99, score))
+    return TaskGrade(task_id="medium_priority_queue_mix", score=round(clamped_score, 4),
                      breakdown=breakdown, feedback="Medium task graded.")
 
 def grade_hard_account_takeover(state: Dict[str, Any]) -> TaskGrade:
@@ -57,5 +59,6 @@ def grade_hard_account_takeover(state: Dict[str, Any]) -> TaskGrade:
     responded = t.get("response_sent", False)
     breakdown["responded_safely"] = 0.15 if responded else 0.0
     score = sum(breakdown.values())
-    return TaskGrade(task_id="hard_account_takeover", score=round(max(0.0, min(1.0, score)), 4),
+    clamped_score = max(0.01, min(0.99, score))
+    return TaskGrade(task_id="hard_account_takeover", score=round(clamped_score, 4),
                      breakdown=breakdown, feedback="Hard task graded.")
