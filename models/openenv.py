@@ -1,123 +1,129 @@
-"""OpenEnv-facing Pydantic models."""
-
+"""All Pydantic models for the SmartOps AI OpenEnv environment."""
 from __future__ import annotations
+from enum import Enum
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
 
-from openenv.core.env_server.types import Action, Observation, State
-from pydantic import Field, model_validator
+class TicketCategory(str, Enum):
+    billing = "billing"
+    technical = "technical"
+    delivery = "delivery"
+    fraud = "fraud"
+    general = "general"
 
-from .reward import TicketReward
-from .ticket import (
-    ActionRecord,
-    ActionType,
-    MetricsSnapshot,
-    QueueSummary,
-    SupportTicket,
-    TaskDifficulty,
-    TicketCategory,
-    TicketPublicView,
-)
+class TicketStatus(str, Enum):
+    open = "open"
+    pending = "pending"
+    escalated = "escalated"
+    resolved = "resolved"
 
+class TicketUrgency(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    critical = "critical"
 
-class SmartOpsAction(Action):
-    """Structured action space for customer support operations."""
+class TicketSentiment(str, Enum):
+    positive = "positive"
+    neutral = "neutral"
+    frustrated = "frustrated"
+    angry = "angry"
 
-    action_type: ActionType = Field(..., description="The support operation to execute.")
-    ticket_id: str = Field(..., min_length=1, description="Target ticket identifier.")
-    category: TicketCategory | None = Field(
-        default=None,
-        description="Required for classify_ticket.",
-    )
-    message: str | None = Field(
-        default=None,
-        description="Required for respond_to_ticket.",
-    )
-    reason: str | None = Field(
-        default=None,
-        description="Required for escalate_ticket.",
-    )
-    question: str | None = Field(
-        default=None,
-        description="Required for request_more_info.",
-    )
+class ActionType(str, Enum):
+    classify_ticket = "classify_ticket"
+    respond_to_ticket = "respond_to_ticket"
+    escalate_ticket = "escalate_ticket"
+    resolve_ticket = "resolve_ticket"
+    request_more_info = "request_more_info"
 
-    @model_validator(mode="after")
-    def validate_payload(self) -> "SmartOpsAction":
-        requirements = {
-            ActionType.CLASSIFY_TICKET: ("category",),
-            ActionType.RESPOND_TO_TICKET: ("message",),
-            ActionType.ESCALATE_TICKET: ("reason",),
-            ActionType.RESOLVE_TICKET: tuple(),
-            ActionType.REQUEST_MORE_INFO: ("question",),
-        }
-        required = set(requirements[self.action_type])
-        provided_map = {
-            "category": self.category,
-            "message": self.message,
-            "reason": self.reason,
-            "question": self.question,
-        }
+class TaskDifficulty(str, Enum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
 
-        missing = [field for field in required if provided_map[field] in (None, "")]
-        if missing:
-            joined = ", ".join(missing)
-            raise ValueError(f"{self.action_type.value} requires: {joined}")
+class SupportTicket(BaseModel):
+    id: str
+    subject: str
+    user_message: str
+    urgency: TicketUrgency
+    sentiment: TicketSentiment
+    status: TicketStatus = TicketStatus.open
+    category: Optional[TicketCategory] = None
+    predicted_category: Optional[TicketCategory] = None
+    minutes_until_sla: int = 120
+    response_sent: bool = False
+    escalated: bool = False
+    resolved: bool = False
+    info_requested: bool = False
+    context: Dict[str, Any] = Field(default_factory=dict)
 
-        for field_name, field_value in provided_map.items():
-            if field_name not in required and field_value not in (None, ""):
-                raise ValueError(
-                    f"{field_name} is not valid for action_type={self.action_type.value}"
-                )
+class TicketPublicView(BaseModel):
+    id: str
+    subject: str
+    user_message: str
+    urgency: str
+    sentiment: str
+    status: str
+    predicted_category: Optional[str] = None
+    minutes_until_sla: int
 
-        return self
+class QueueSummary(BaseModel):
+    total_open: int
+    backlog_ids: List[str]
 
+class MetricsSnapshot(BaseModel):
+    csat_score: float = Field(ge=0.0, le=1.0)
+    sla_breach_count: int = 0
+    resolved_count: int = 0
+    escalation_count: int = 0
 
-class SmartOpsObservation(Observation):
-    """Observation exposed to the agent."""
+class ActionRecord(BaseModel):
+    action_type: str
+    ticket_id: str
+    detail: Optional[str] = None
 
-    task_id: str = Field(..., description="Current deterministic task identifier.")
-    task_difficulty: TaskDifficulty = Field(..., description="Scenario difficulty.")
-    focus_ticket: TicketPublicView | None = Field(
-        default=None,
-        description="Ticket currently highlighted for the agent.",
-    )
-    queue_summary: QueueSummary = Field(..., description="Operational summary of the queue.")
-    elapsed_minutes: int = Field(..., ge=0, description="Simulated minutes since reset.")
-    previous_actions: list[ActionRecord] = Field(
-        default_factory=list,
-        description="Recent action history visible to the agent.",
-    )
-    system_metrics: MetricsSnapshot = Field(
-        default_factory=MetricsSnapshot,
-        description="Partial support system metrics visible to the agent.",
-    )
-    workflow_hint: str = Field(..., description="High-level operating guidance.")
-    available_ticket_ids: list[str] = Field(
-        default_factory=list,
-        description="Remaining actionable tickets.",
-    )
-    last_reward: TicketReward | None = Field(
-        default=None,
-        description="Structured reward breakdown for the previous action.",
-    )
+class TaskScenario(BaseModel):
+    task_id: str
+    difficulty: TaskDifficulty
+    tickets: List[SupportTicket]
+    description: str
 
+class TaskGrade(BaseModel):
+    task_id: str
+    score: float = Field(ge=0.0, le=1.0)
+    breakdown: Dict[str, float] = Field(default_factory=dict)
+    feedback: str = ""
 
-class SupportState(State):
-    """Full internal environment state returned by state()."""
+class SupportState(BaseModel):
+    task_id: str
+    task_difficulty: str
+    tickets: List[SupportTicket] = Field(default_factory=list)
+    action_history: List[ActionRecord] = Field(default_factory=list)
+    elapsed_minutes: int = 0
+    metrics: MetricsSnapshot = Field(default_factory=lambda: MetricsSnapshot(csat_score=1.0))
+    done: bool = False
 
-    active_task_id: str | None = Field(default=None, description="Loaded task identifier.")
-    task_difficulty: TaskDifficulty | None = Field(default=None, description="Loaded task difficulty.")
-    elapsed_minutes: int = Field(default=0, ge=0)
-    max_steps: int = Field(default=0, ge=0)
-    done: bool = Field(default=False)
-    focus_ticket_id: str | None = Field(default=None)
-    tickets: list[SupportTicket] = Field(default_factory=list)
-    action_history: list[ActionRecord] = Field(default_factory=list)
-    customer_satisfaction: float = Field(default=0.78, ge=0.0, le=1.0)
-    sla_adherence: float = Field(default=1.0, ge=0.0, le=1.0)
-    last_reward: TicketReward | None = Field(default=None)
-    deterministic_seed: int = Field(default=0)
-    task_description: str = Field(default="")
-    expected_priority_order: list[str] = Field(default_factory=list)
-    metrics: MetricsSnapshot | None = Field(default=None)
-    terminal_score: float | None = Field(default=None, ge=0.0, le=1.0)
-    terminal_notes: list[str] = Field(default_factory=list)
+class SmartOpsAction(BaseModel):
+    action_type: ActionType
+    ticket_id: str
+    category: Optional[TicketCategory] = None
+    message: Optional[str] = None
+    reason: Optional[str] = None
+    question: Optional[str] = None
+
+class SmartOpsObservation(BaseModel):
+    task_id: str
+    task_difficulty: str
+    focus_ticket: TicketPublicView
+    queue_summary: QueueSummary
+    elapsed_minutes: int = 0
+    previous_actions: List[ActionRecord] = Field(default_factory=list)
+    system_metrics: MetricsSnapshot = Field(default_factory=lambda: MetricsSnapshot(csat_score=1.0))
+    workflow_hint: str = ""
+    last_reward: Optional[float] = None
+    done: Optional[bool] = False
+    reward: Optional[float] = None
+
+class TicketReward(BaseModel):
+    value: float = Field(ge=0.0, le=1.0)
+    reason: str = ""
