@@ -5,9 +5,11 @@ from openai import OpenAI
 # ----------------------------
 # CONFIG
 # ----------------------------
-API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
-API_KEY = os.getenv("API_KEY", os.getenv("HF_TOKEN", "dummy_key"))
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+ENV_BASE_URL = "https://utshav-raj-ai-smartops-ai-env.hf.space"
+
+API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+API_KEY = os.environ.get("API_KEY", "dummy_key")
+MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
 client = OpenAI(
     base_url=API_BASE,
@@ -19,14 +21,14 @@ client = OpenAI(
 # ----------------------------
 def reset_env():
     try:
-        r = requests.post(f"{API_BASE}/reset", timeout=10)
+        r = requests.post(f"{ENV_BASE_URL}/reset", timeout=10)
         return r.json()
     except Exception as e:
         return None
 
 def step_env(action):
     try:
-        r = requests.post(f"{API_BASE}/step", json=action, timeout=10)
+        r = requests.post(f"{ENV_BASE_URL}/step", json=action, timeout=10)
         return r.json()
     except Exception as e:
         return None
