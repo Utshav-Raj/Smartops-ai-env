@@ -11,8 +11,8 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 
 COPY . /app
-RUN pip install .
+RUN pip install -e .
 
 EXPOSE 8000
 
-CMD ["python", "-m", "smartops_ai_env.server.app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
