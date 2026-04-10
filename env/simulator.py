@@ -181,8 +181,11 @@ class SmartOpsSimulator:
             task_id=self._state.task_id,
             task_difficulty=self._state.task_difficulty,
             focus_ticket=TicketPublicView(
-                id=focus.id, subject=focus.subject, user_message=focus.user_message,
-                urgency=focus.urgency.value, sentiment=focus.sentiment.value,
+                id=focus.id,
+                subject=focus.subject,
+                user_message=focus.user_message,
+                urgency=focus.urgency.value,
+                sentiment=focus.sentiment.value,
                 status=focus.status.value,
                 predicted_category=focus.predicted_category.value if focus.predicted_category else None,
                 minutes_until_sla=focus.minutes_until_sla,
