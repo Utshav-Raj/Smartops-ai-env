@@ -27,7 +27,7 @@ class SmartOpsEnvironment(Environment):
     def step(self, action, timeout_s=None, **kwargs):
         try:
             observation, reward, done, info = self._simulator.step(action)
-            return observation, reward, done, info
+            return observation
         except Exception as e:
             print("STEP ERROR:", str(e))
             raise e

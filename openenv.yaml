@@ -11,7 +11,7 @@ description: >
   escalate specialist cases, resolve routine issues, and protect customer
   satisfaction while meeting SLAs.
 action_space:
-  model: models.openenv.SmartOpsAction
+  model: smartops_ai_env.models.openenv.SmartOpsAction
   actions:
     - classify_ticket(category, ticket_id)
     - respond_to_ticket(message, ticket_id)
@@ -19,7 +19,7 @@ action_space:
     - resolve_ticket(ticket_id)
     - request_more_info(question, ticket_id)
 observation_space:
-  model: models.openenv.SmartOpsObservation
+  model: smartops_ai_env.models.openenv.SmartOpsObservation
   includes:
     - focus_ticket
     - queue_summary
@@ -33,25 +33,25 @@ reward_range:
 tasks:
   - id: easy_duplicate_charge_refund
     difficulty: easy
-    input_scenario: tasks.catalog:get_task("easy_duplicate_charge_refund")
+    input_scenario: smartops_ai_env.tasks.catalog:get_task("easy_duplicate_charge_refund")
     expected_behavior:
       - Classify the ticket as billing.
       - Respond with a duplicate-charge refund update and timing.
       - Resolve the ticket without escalation.
-    grader: tasks.graders:grade_easy_duplicate_charge_refund
+    grader: smartops_ai_env.tasks.graders:grade_easy_duplicate_charge_refund
   - id: medium_priority_queue_mix
     difficulty: medium
-    input_scenario: tasks.catalog:get_task("medium_priority_queue_mix")
+    input_scenario: smartops_ai_env.tasks.catalog:get_task("medium_priority_queue_mix")
     expected_behavior:
       - Work the delivery ticket first because it is closest to breaching SLA.
       - Handle all tickets with the right category-specific response.
       - Resolve every ticket in the queue.
-    grader: tasks.graders:grade_medium_priority_queue_mix
+    grader: smartops_ai_env.tasks.graders:grade_medium_priority_queue_mix
   - id: hard_account_takeover
     difficulty: hard
-    input_scenario: tasks.catalog:get_task("hard_account_takeover")
+    input_scenario: smartops_ai_env.tasks.catalog:get_task("hard_account_takeover")
     expected_behavior:
       - Classify the mixed-symptom incident as fraud.
       - Use a safety-first response, ask for verification details, then escalate.
       - Finish with a correct escalated terminal state.
-    grader: tasks.graders:grade_hard_account_takeover
+    grader: smartops_ai_env.tasks.graders:grade_hard_account_takeover
