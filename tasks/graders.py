@@ -6,7 +6,7 @@ def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> TaskGrade:
     tickets = state.get("tickets", [])
     t = next((x for x in tickets if x["id"] == "B-1001"), None)
     if not t:
-        return TaskGrade(task_id="easy_duplicate_charge_refund", score=0.0, feedback="Ticket not found.")
+        return TaskGrade(task_id="easy_duplicate_charge_refund", score=0.01, feedback="Ticket not found.")
     history = state.get("action_history", [])
     score, breakdown = 0.0, {}
     classified = any(a["action_type"] == "classify_ticket" and a["ticket_id"] == "B-1001" for a in history)
@@ -48,7 +48,7 @@ def grade_hard_account_takeover(state: Dict[str, Any]) -> TaskGrade:
     tickets = state.get("tickets", [])
     t = next((x for x in tickets if x["id"] == "F-3001"), None)
     if not t:
-        return TaskGrade(task_id="hard_account_takeover", score=0.0, feedback="Ticket not found.")
+        return TaskGrade(task_id="hard_account_takeover", score=0.01, feedback="Ticket not found.")
     breakdown = {}
     breakdown["fraud_classified"] = 0.30 if t.get("predicted_category") == "fraud" else 0.0
     breakdown["info_requested"] = 0.25 if t.get("info_requested") else 0.0
