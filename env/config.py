@@ -1,24 +1,14 @@
-"""Runtime configuration for SmartOps AI."""
+from dataclasses import dataclass
 
-from __future__ import annotations
-
-from pydantic import BaseModel, Field
-
-
-class SmartOpsConfig(BaseModel):
-    """Configuration for the deterministic SmartOps simulation."""
-
-    default_task_id: str = Field(
-        default="easy_duplicate_charge_refund",
-        description="Task to load when reset() receives no explicit task identifier.",
-    )
-    default_seed: int = Field(
-        default=17,
-        description="Deterministic seed applied when a task does not provide one.",
-    )
-    max_history_in_observation: int = Field(
-        default=5,
-        ge=1,
-        description="Number of recent actions included in observations.",
-    )
-    log_level: str = Field(default="INFO", description="Logger level for the simulator.")
+@dataclass
+class SmartOpsConfig:
+    max_steps: int = 20
+    sla_window_minutes: int = 120
+    classify_weight: float = 0.15
+    respond_weight: float = 0.20
+    resolve_weight: float = 0.35
+    escalate_weight: float = 0.20
+    info_weight: float = 0.10
+    wrong_category_penalty: float = 0.10
+    sla_breach_penalty: float = 0.15
+    loop_penalty: float = 0.05
