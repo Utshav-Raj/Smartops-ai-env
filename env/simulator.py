@@ -1,40 +1,24 @@
 """Core simulation engine for SmartOps AI."""
-
 from __future__ import annotations
-
 import copy
 from typing import Any, Dict, List, Optional, Tuple
-
 from ..models.openenv import (
-    ActionRecord,
-    ActionType,
-    MetricsSnapshot,
-    QueueSummary,
-    SmartOpsAction,
-    SmartOpsObservation,
-    SupportState,
-    SupportTicket,
-    TaskDifficulty,
-    TicketCategory,
-    TicketPublicView,
-    TicketStatus,
+    ActionRecord, ActionType, MetricsSnapshot, QueueSummary,
+    SmartOpsAction, SmartOpsObservation, SupportState, SupportTicket,
+    TicketCategory, TicketPublicView, TicketStatus,
 )
 from ..tasks.catalog import get_task
 from .config import SmartOpsConfig
 
-
 WORKFLOW_HINTS = {
-    ActionType.classify_ticket: "Good — classification helps route the ticket correctly.",
+    ActionType.classify_ticket: "Classification helps route the ticket correctly.",
     ActionType.respond_to_ticket: "Response sent. Consider resolving or escalating next.",
-    ActionType.escalate_ticket: "Escalated to specialist. Episode will close.",
+    ActionType.escalate_ticket: "Escalated to specialist.",
     ActionType.resolve_ticket: "Ticket resolved. Move to the next one.",
-    ActionType.request_more_info: "Info requested. Respond once details arrive.",
+    ActionType.request_more_info: "Info requested.",
 }
 
-
 class SmartOpsSimulator:
-    """Stateful simulator implementing OpenEnv step/reset/state."""
-
     def __init__(self, config: SmartOpsConfig):
         self._config = config
         self._state: Optional[SupportState] = None
@@ -64,7 +48,6 @@ class SmartOpsSimulator:
         assert self._state is not None
         self._step_count += 1
         self._state.elapsed_minutes += 5
-
         if isinstance(action, SmartOpsAction):
             act = action
         elif isinstance(action, dict):
@@ -78,7 +61,6 @@ class SmartOpsSimulator:
                 reason=getattr(action, "reason", None),
                 question=getattr(action, "question", None),
             )
-
         reward = self._apply_action(act)
         done = self._check_done()
         self._state.done = done
@@ -91,7 +73,7 @@ class SmartOpsSimulator:
         return self._state.model_dump()
 
     def _get_ticket(self, ticket_id: str) -> Optional[SupportTicket]:
-        for t in self._state.tickets:  # type: ignore
+        for t in self._state.tickets:
             if t.id == ticket_id:
                 return t
         return None
@@ -101,21 +83,16 @@ class SmartOpsSimulator:
         assert state is not None
         ticket = self._get_ticket(action.ticket_id)
         if ticket is None:
-            return -0.05
-
-        recent = [
-            r for r in state.action_history[-4:]
-            if r.ticket_id == action.ticket_id and r.action_type == action.action_type.value
-        ]
+            return 0.0
+        recent = [r for r in state.action_history[-4:]
+                  if r.ticket_id == action.ticket_id and r.action_type == action.action_type.value]
         if len(recent) >= 2:
-            return -self._config.loop_penalty
-
+            return 0.0
         state.action_history.append(ActionRecord(
             action_type=action.action_type.value,
             ticket_id=action.ticket_id,
             detail=action.category or action.reason or action.question or action.message,
         ))
-
         if action.action_type == ActionType.classify_ticket:
             reward = self._do_classify(ticket, action.category)
         elif action.action_type == ActionType.respond_to_ticket:
@@ -128,11 +105,9 @@ class SmartOpsSimulator:
             reward = self._do_request_info(ticket, action.question)
         else:
             reward = 0.0
-
         if ticket.minutes_until_sla <= 0 and not ticket.resolved:
             reward -= self._config.sla_breach_penalty
             state.metrics.sla_breach_count += 1
-
         return round(max(0.0, min(1.0, reward)), 4)
 
     def _do_classify(self, ticket: SupportTicket, category: Optional[TicketCategory]) -> float:
@@ -159,7 +134,7 @@ class SmartOpsSimulator:
             return 0.0
         ticket.escalated = True
         ticket.status = TicketStatus.escalated
-        self._state.metrics.escalation_count += 1  # type: ignore
+        self._state.metrics.escalation_count += 1
         expected = ticket.context.get("should_escalate", False)
         return self._config.escalate_weight if expected else self._config.escalate_weight * 0.3
 
@@ -170,9 +145,9 @@ class SmartOpsSimulator:
             return self._config.resolve_weight * 0.2
         ticket.resolved = True
         ticket.status = TicketStatus.resolved
-        self._state.metrics.resolved_count += 1  # type: ignore
+        self._state.metrics.resolved_count += 1
         if ticket.sentiment.value in ("angry", "frustrated"):
-            self._state.metrics.csat_score = max(0.0, self._state.metrics.csat_score - 0.05)  # type: ignore
+            self._state.metrics.csat_score = max(0.0, self._state.metrics.csat_score - 0.05)
         return self._config.resolve_weight
 
     def _do_request_info(self, ticket: SupportTicket, question: Optional[str]) -> float:
@@ -206,11 +181,8 @@ class SmartOpsSimulator:
             task_id=self._state.task_id,
             task_difficulty=self._state.task_difficulty,
             focus_ticket=TicketPublicView(
-                id=focus.id,
-                subject=focus.subject,
-                user_message=focus.user_message,
-                urgency=focus.urgency.value,
-                sentiment=focus.sentiment.value,
+                id=focus.id, subject=focus.subject, user_message=focus.user_message,
+                urgency=focus.urgency.value, sentiment=focus.sentiment.value,
                 status=focus.status.value,
                 predicted_category=focus.predicted_category.value if focus.predicted_category else None,
                 minutes_until_sla=focus.minutes_until_sla,
