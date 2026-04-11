@@ -72,7 +72,7 @@ class SmartOpsSimulator:
     def get_state(self) -> Dict[str, Any]:
         if self._state is None:
             return {}
-        return self._state.model_dump()
+        return self._state.model_dump(mode="json")
 
     def _ticket(self, tid: str) -> Optional[SupportTicket]:
         for t in self._state.tickets:

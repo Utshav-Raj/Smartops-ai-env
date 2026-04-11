@@ -3,14 +3,20 @@ from typing import Any, Dict
 
 
 def _cat(ticket: Dict[str, Any]) -> str | None:
-    """Return predicted_category as a plain string, handling enum dicts."""
+    """Return predicted_category as a plain string, handling all serialisation forms."""
     val = ticket.get("predicted_category")
     if val is None:
         return None
-    # Pydantic v2 serialises enums as their .value (a string) in model_dump()
+    # Pydantic v2 model_dump(mode='json') → plain string
+    # Pydantic v2 model_dump()           → enum object with .value
+    # Pydantic v2 dict with {"value": ...} form
     if isinstance(val, dict):
         return val.get("value")
-    return str(val)
+    if hasattr(val, "value"):           # enum object
+        return str(val.value)
+    raw = str(val)
+    # Strip any "EnumClass.member" prefix left by str(enum)
+    return raw.split(".")[-1]
 
 
 def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> float:
@@ -35,8 +41,8 @@ def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> float:
     if t.get("escalated", False):
         breakdown["resolved"] = 0.0
 
-    score = sum(breakdown.values())
-    # Clamp strictly inside (0, 1) — never return boundary values
+    score = float(sum(breakdown.values()))
+    # Clamp strictly inside (0, 1) — platform rejects 0.0 and 1.0
     return round(max(0.12, min(0.88, score)), 4)
 
 
@@ -71,7 +77,7 @@ def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> float:
     )
     breakdown["delivery_prioritised"] = 0.30 if first_delivery else 0.0
 
-    score = sum(breakdown.values())
+    score = float(sum(breakdown.values()))
     return round(max(0.12, min(0.88, score)), 4)
 
 
@@ -92,5 +98,5 @@ def grade_hard_account_takeover(state: Dict[str, Any]) -> float:
 
     breakdown["responded_safely"]  = 0.15 if t.get("response_sent", False) else 0.0
 
-    score = sum(breakdown.values())
+    score = float(sum(breakdown.values()))
     return round(max(0.12, min(0.88, score)), 4)
