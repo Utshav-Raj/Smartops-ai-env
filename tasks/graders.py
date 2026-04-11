@@ -2,6 +2,11 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
+def _strict_score(score: float, low: float = 0.12, high: float = 0.88) -> float:
+    """Clamp task scores strictly inside the open interval (0, 1)."""
+    return round(max(low, min(high, float(score))), 4)
+
+
 def _cat(ticket: Dict[str, Any]) -> str | None:
     """Return predicted_category as a plain string, handling all serialisation forms."""
     val = ticket.get("predicted_category")
@@ -42,8 +47,7 @@ def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> float:
         breakdown["resolved"] = 0.0
 
     score = float(sum(breakdown.values()))
-    # Clamp strictly inside (0, 1) — platform rejects 0.0 and 1.0
-    return round(max(0.12, min(0.88, score)), 4)
+    return _strict_score(score)
 
 
 def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> float:
@@ -78,7 +82,7 @@ def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> float:
     breakdown["delivery_prioritised"] = 0.30 if first_delivery else 0.0
 
     score = float(sum(breakdown.values()))
-    return round(max(0.12, min(0.88, score)), 4)
+    return _strict_score(score)
 
 
 def grade_hard_account_takeover(state: Dict[str, Any]) -> float:
@@ -99,4 +103,4 @@ def grade_hard_account_takeover(state: Dict[str, Any]) -> float:
     breakdown["responded_safely"]  = 0.15 if t.get("response_sent", False) else 0.0
 
     score = float(sum(breakdown.values()))
-    return round(max(0.12, min(0.88, score)), 4)
+    return _strict_score(score)

@@ -55,6 +55,11 @@ def call_llm(prompt: str) -> str:
     return resp.choices[0].message.content or ""
 
 
+def strict_score(value: float, low: float = 0.01, high: float = 0.99) -> float:
+    """Clamp any emitted score strictly inside the open interval (0, 1)."""
+    return round(max(low, min(high, float(value))), 4)
+
+
 def llm_pick_action(task_id: str, observation: dict) -> dict | None:
     """Ask the LLM to choose the next action given the current observation."""
     focus   = observation.get("focus_ticket", {})
@@ -175,7 +180,8 @@ async def _run_task_ws(task_id: str) -> float:
             raw  = await asyncio.wait_for(ws.recv(), timeout=30)
             resp = json.loads(raw)
             data = resp.get("data", {})
-            r    = float(data.get("reward") or 0.0)
+            r_raw = float(data.get("reward") or 0.0)
+            r = strict_score(r_raw)
             done = data.get("done", False)
             obs  = data.get("observation", obs)
             total_reward += r
@@ -186,7 +192,7 @@ async def _run_task_ws(task_id: str) -> float:
                 break
 
     raw_score = total_reward / max(steps, 1)
-    return round(max(0.13, min(0.87, raw_score)), 4)
+    return strict_score(raw_score, low=0.13, high=0.87)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -213,7 +219,7 @@ def _run_task_http(task_id: str) -> float:
         try:
             r = requests.post(f"{ENV_BASE_URL}/step",
                               json={"action": act}, timeout=20)
-            reward = float((r.json() if r.ok else {}).get("reward") or 0.0)
+            reward = strict_score(float((r.json() if r.ok else {}).get("reward") or 0.0))
         except Exception:
             reward = 0.01
         total_reward += reward
@@ -221,7 +227,7 @@ def _run_task_http(task_id: str) -> float:
         print(f"  [http-step] {act['action_type']:25s} reward={reward:.4f}")
 
     raw = total_reward / max(steps, 1)
-    return round(max(0.13, min(0.87, raw)), 4)
+    return strict_score(raw, low=0.13, high=0.87)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -238,7 +244,7 @@ async def _async_main() -> None:
             print(f"  [ws-error] {ws_err}  → HTTP fallback")
             final_score = _run_task_http(task_id)
 
-        final_score = round(max(0.13, min(0.87, float(final_score))), 4)
+        final_score = strict_score(final_score, low=0.13, high=0.87)
         print(f"[END]\nfinal_score={final_score:.4f}")
 
 
