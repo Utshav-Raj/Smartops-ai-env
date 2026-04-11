@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict
-from models.openenv import TaskGrade
+from ..models.openenv import TaskGrade
 
 def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> TaskGrade:
     tickets = state.get("tickets", [])

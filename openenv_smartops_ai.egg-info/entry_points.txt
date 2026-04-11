@@ -1,0 +1,2 @@
+[console_scripts]
+server = smartops_ai_env.server.app:main

@@ -1,12 +1,12 @@
 from __future__ import annotations
 import copy
 from typing import Any, Dict, Optional, Tuple
-from models.openenv import (
+from ..models.openenv import (
     ActionRecord, ActionType, MetricsSnapshot, QueueSummary,
     SmartOpsAction, SmartOpsObservation, SupportState, SupportTicket,
     TicketCategory, TicketPublicView, TicketStatus,
 )
-from tasks.catalog import get_task
+from ..tasks.catalog import get_task
 from .config import SmartOpsConfig
 
 HINTS = {

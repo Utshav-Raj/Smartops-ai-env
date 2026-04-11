@@ -1,5 +1,4 @@
-from env.simulator import SmartOpsSimulator
-from env.config import SmartOpsConfig
+from smartops_ai_env.env import SmartOpsConfig, SmartOpsSimulator
 from openenv.core import Environment
 
 class SmartOpsEnvironment(Environment):

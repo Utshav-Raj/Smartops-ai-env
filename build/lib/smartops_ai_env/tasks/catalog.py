@@ -1,5 +1,5 @@
 from __future__ import annotations
-from models.openenv import (
+from ..models.openenv import (
     SupportTicket, TaskDifficulty, TaskScenario,
     TicketSentiment, TicketStatus, TicketUrgency,
 )
