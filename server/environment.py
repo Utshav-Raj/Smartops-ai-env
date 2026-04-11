@@ -11,23 +11,31 @@ class SmartOpsEnvironment(Environment):
         self._config = SmartOpsConfig()
         self._simulator = SmartOpsSimulator(self._config)
         self._initialized = False
+        self._current_task_id = "easy_duplicate_charge_refund"
 
     # -------------------------
     # RESET
     # -------------------------
-    def reset(self, seed=None, episode_id=None, **kwargs):
+    def reset(self, seed=None, episode_id=None, task_id=None, **kwargs):
+        """
+        Accept task_id in any of these forms (all used by different callers):
+          reset(task_id="medium_priority_queue_mix")           # WebSocket / platform
+          reset(options={"task_id": "medium_priority_queue_mix"}) # HTTP inference.py
+          reset()                                               # default → easy
+        """
         try:
-            options  = kwargs.get("options", {}) or {}
-            scenario = options.get("scenario")
-            task_id  = options.get("task_id")          # ← extract task_id from options
+            options = kwargs.get("options", {}) or {}
 
-            if scenario is not None:
-                observation = self._simulator.reset(scenario=scenario)
-            elif task_id is not None:
-                observation = self._simulator.reset(task_id=task_id)  # ← forward it
-            else:
-                observation = self._simulator.reset()
+            # Resolve effective task_id — prefer direct arg, then options dict
+            effective_task_id = (
+                task_id
+                or options.get("task_id")
+                or options.get("scenario")
+                or "easy_duplicate_charge_refund"
+            )
+            self._current_task_id = effective_task_id
 
+            observation = self._simulator.reset(task_id=effective_task_id)
             self._initialized = True
             return observation
         except Exception as e:
@@ -39,6 +47,10 @@ class SmartOpsEnvironment(Environment):
     # -------------------------
     def step(self, action, timeout_s=None, **kwargs):
         try:
+            if not self._initialized:
+                # Auto-reset preserving the last requested task
+                self._simulator.reset(task_id=self._current_task_id)
+                self._initialized = True
             observation, reward, done, info = self._simulator.step(action)
             return observation
         except Exception as e:
@@ -59,4 +71,4 @@ class SmartOpsEnvironment(Environment):
     # CLOSE (REQUIRED)
     # -------------------------
     def close(self):
-        pass
+        self._initialized = False
