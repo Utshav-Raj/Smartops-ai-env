@@ -28,8 +28,8 @@ observation_space:
     - system_metrics
     - workflow_hint
 reward_range:
-  min: 0.0
-  max: 1.0
+  min: 0.01
+  max: 0.99
 tasks:
   - id: easy_duplicate_charge_refund
     difficulty: easy

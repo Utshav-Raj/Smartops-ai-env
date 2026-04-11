@@ -83,11 +83,11 @@ class SmartOpsSimulator:
     def _apply(self, action: SmartOpsAction) -> float:
         ticket = self._ticket(action.ticket_id)
         if ticket is None:
-            return 0.0
+            return 0.01
         recent = [r for r in self._state.action_history[-4:]
                   if r.ticket_id == action.ticket_id and r.action_type == action.action_type.value]
         if len(recent) >= 2:
-            return 0.0
+            return 0.01
         self._state.action_history.append(ActionRecord(
             action_type=action.action_type.value,
             ticket_id=action.ticket_id,
@@ -109,7 +109,8 @@ class SmartOpsSimulator:
         if ticket.minutes_until_sla <= 0 and not ticket.resolved:
             r -= self._config.sla_breach_penalty
             self._state.metrics.sla_breach_count += 1
-        return round(max(0.0, min(1.0, r)), 4)
+        # Clamp strictly inside (0, 1) — boundary values fail OpenEnv score validation
+        return round(max(0.01, min(0.99, r)), 4)
 
     def _classify(self, t: SupportTicket, cat: Optional[TicketCategory]) -> float:
         if cat is None:
