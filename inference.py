@@ -5,15 +5,15 @@ from openai import OpenAI
 # ----------------------------
 # CONFIG
 # ----------------------------
-ENV_BASE_URL = "https://utshav-raj-ai-smartops-ai-env.hf.space"
+ENV_BASE_URL = os.getenv("OPENENV_BASE_URL", "https://utshav-raj-ai-smartops-ai-env.hf.space")
 
-API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
-API_KEY = os.environ.get("API_KEY", "dummy_key")
-MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 client = OpenAI(
-    base_url=API_BASE,
-    api_key=API_KEY
+    base_url=API_BASE_URL,
+    api_key=HF_TOKEN or "dummy_key"
 )
 
 # ----------------------------

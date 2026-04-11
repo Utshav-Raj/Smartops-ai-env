@@ -5,7 +5,7 @@ def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> float:
     tickets = state.get("tickets", [])
     t = next((x for x in tickets if x["id"] == "B-1001"), None)
     if not t:
-        return 0.01
+        return 0.10
     history = state.get("action_history", [])
     score, breakdown = 0.0, {}
     classified = any(a["action_type"] == "classify_ticket" and a["ticket_id"] == "B-1001" for a in history)
@@ -20,7 +20,7 @@ def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> float:
     if not no_escalation:
         breakdown["resolved"] = 0.0
     score = sum(breakdown.values())
-    return max(0.01, min(0.99, score))
+    return max(0.10, min(0.90, score))
 
 def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> float:
     tickets = {t["id"]: t for t in state.get("tickets", [])}
@@ -37,13 +37,13 @@ def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> float:
     first_delivery = history[0]["ticket_id"] == "D-2001" if history else False
     breakdown["delivery_prioritised"] = 0.30 if first_delivery else 0.0
     score = sum(breakdown.values())
-    return max(0.01, min(0.99, score))
+    return max(0.10, min(0.90, score))
 
 def grade_hard_account_takeover(state: Dict[str, Any]) -> float:
     tickets = state.get("tickets", [])
     t = next((x for x in tickets if x["id"] == "F-3001"), None)
     if not t:
-        return 0.01
+        return 0.10
     breakdown = {}
     breakdown["fraud_classified"] = 0.30 if t.get("predicted_category") == "fraud" else 0.0
     breakdown["info_requested"] = 0.25 if t.get("info_requested") else 0.0
@@ -54,4 +54,4 @@ def grade_hard_account_takeover(state: Dict[str, Any]) -> float:
     responded = t.get("response_sent", False)
     breakdown["responded_safely"] = 0.15 if responded else 0.0
     score = sum(breakdown.values())
-    return max(0.01, min(0.99, score))
+    return max(0.10, min(0.90, score))
