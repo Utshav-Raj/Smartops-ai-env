@@ -1,57 +1,96 @@
 from __future__ import annotations
 from typing import Any, Dict
 
+
+def _cat(ticket: Dict[str, Any]) -> str | None:
+    """Return predicted_category as a plain string, handling enum dicts."""
+    val = ticket.get("predicted_category")
+    if val is None:
+        return None
+    # Pydantic v2 serialises enums as their .value (a string) in model_dump()
+    if isinstance(val, dict):
+        return val.get("value")
+    return str(val)
+
+
 def grade_easy_duplicate_charge_refund(state: Dict[str, Any]) -> float:
     tickets = state.get("tickets", [])
-    t = next((x for x in tickets if x["id"] == "B-1001"), None)
+    t = next((x for x in tickets if x.get("id") == "B-1001"), None)
     if not t:
-        return 0.10
+        return 0.12  # no ticket in state — minimal non-zero, non-one score
+
     history = state.get("action_history", [])
-    score, breakdown = 0.0, {}
-    classified = any(a["action_type"] == "classify_ticket" and a["ticket_id"] == "B-1001" for a in history)
-    breakdown["classified"] = 0.25 if classified else 0.0
-    correct_cat = t.get("predicted_category") == "billing"
-    breakdown["correct_category"] = 0.25 if correct_cat else 0.0
-    responded = t.get("response_sent", False)
-    breakdown["responded"] = 0.25 if responded else 0.0
-    resolved = t.get("resolved", False)
-    breakdown["resolved"] = 0.25 if resolved else 0.0
-    no_escalation = not t.get("escalated", False)
-    if not no_escalation:
+    breakdown: Dict[str, float] = {}
+
+    classified = any(
+        a.get("action_type") == "classify_ticket" and a.get("ticket_id") == "B-1001"
+        for a in history
+    )
+    breakdown["classified"]      = 0.25 if classified else 0.0
+    breakdown["correct_category"] = 0.25 if _cat(t) == "billing" else 0.0
+    breakdown["responded"]        = 0.25 if t.get("response_sent", False) else 0.0
+    breakdown["resolved"]         = 0.25 if t.get("resolved", False) else 0.0
+
+    # Penalise wrong escalation
+    if t.get("escalated", False):
         breakdown["resolved"] = 0.0
+
     score = sum(breakdown.values())
-    return max(0.10, min(0.90, score))
+    # Clamp strictly inside (0, 1) — never return boundary values
+    return round(max(0.12, min(0.88, score)), 4)
+
 
 def grade_medium_priority_queue_mix(state: Dict[str, Any]) -> float:
     tickets = {t["id"]: t for t in state.get("tickets", [])}
     history = state.get("action_history", [])
-    breakdown = {}
-    # All resolved
-    all_resolved = all(t.get("resolved") for t in tickets.values())
-    breakdown["all_resolved"] = 0.40 if all_resolved else sum(0.13 for t in tickets.values() if t.get("resolved"))
-    # Correct categories
-    correct = sum(1 for tid, cat in [("D-2001","delivery"),("B-2002","billing"),("T-2003","technical")]
-                  if tickets.get(tid, {}).get("predicted_category") == cat)
-    breakdown["correct_categories"] = round(correct / 3 * 0.30, 4)
-    # Delivery worked first (first action should target D-2001)
-    first_delivery = history[0]["ticket_id"] == "D-2001" if history else False
+    breakdown: Dict[str, float] = {}
+
+    if not tickets:
+        return 0.12  # env not initialised for this task
+
+    # All three tickets resolved
+    resolved_count = sum(1 for t in tickets.values() if t.get("resolved"))
+    all_resolved   = resolved_count == len(tickets)
+    breakdown["all_resolved"] = (
+        0.40 if all_resolved
+        else round(resolved_count / max(len(tickets), 1) * 0.40, 4)
+    )
+
+    # Correct category classifications
+    pairs = [
+        ("D-2001", "delivery"),
+        ("B-2002", "billing"),
+        ("T-2003", "technical"),
+    ]
+    correct = sum(1 for tid, cat in pairs if _cat(tickets.get(tid, {})) == cat)
+    breakdown["correct_categories"] = round(correct / len(pairs) * 0.30, 4)
+
+    # Delivery ticket worked first (SLA priority)
+    first_delivery = (
+        bool(history) and history[0].get("ticket_id") == "D-2001"
+    )
     breakdown["delivery_prioritised"] = 0.30 if first_delivery else 0.0
+
     score = sum(breakdown.values())
-    return max(0.10, min(0.90, score))
+    return round(max(0.12, min(0.88, score)), 4)
+
 
 def grade_hard_account_takeover(state: Dict[str, Any]) -> float:
     tickets = state.get("tickets", [])
-    t = next((x for x in tickets if x["id"] == "F-3001"), None)
+    t = next((x for x in tickets if x.get("id") == "F-3001"), None)
     if not t:
-        return 0.10
-    breakdown = {}
-    breakdown["fraud_classified"] = 0.30 if t.get("predicted_category") == "fraud" else 0.0
-    breakdown["info_requested"] = 0.25 if t.get("info_requested") else 0.0
-    breakdown["escalated"] = 0.30 if t.get("escalated") else 0.0
-    # Penalise if resolved without escalation (dangerous)
-    if t.get("resolved") and not t.get("escalated"):
+        return 0.12  # env not initialised for this task
+
+    breakdown: Dict[str, float] = {}
+    breakdown["fraud_classified"]  = 0.30 if _cat(t) == "fraud" else 0.0
+    breakdown["info_requested"]    = 0.25 if t.get("info_requested", False) else 0.0
+    breakdown["escalated"]         = 0.30 if t.get("escalated", False) else 0.0
+
+    # Dangerous path: resolved WITHOUT escalating a fraud ticket
+    if t.get("resolved", False) and not t.get("escalated", False):
         breakdown["escalated"] = -0.20
-    responded = t.get("response_sent", False)
-    breakdown["responded_safely"] = 0.15 if responded else 0.0
+
+    breakdown["responded_safely"]  = 0.15 if t.get("response_sent", False) else 0.0
+
     score = sum(breakdown.values())
-    return max(0.10, min(0.90, score))
+    return round(max(0.12, min(0.88, score)), 4)

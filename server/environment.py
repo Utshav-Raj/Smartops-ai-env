@@ -2,8 +2,9 @@ from env.simulator import SmartOpsSimulator
 from env.config import SmartOpsConfig
 from openenv.core import Environment
 
+
 class SmartOpsEnvironment(Environment):
-    SUPPORTS_CONCURRENT_SESSIONS = False  # 🔥 IMPORTANT
+    SUPPORTS_CONCURRENT_SESSIONS = False  # required by OpenEnv
 
     def __init__(self):
         super().__init__()
@@ -16,14 +17,23 @@ class SmartOpsEnvironment(Environment):
     # -------------------------
     def reset(self, seed=None, episode_id=None, **kwargs):
         try:
-            options = kwargs.get("options", {})
+            options  = kwargs.get("options", {}) or {}
             scenario = options.get("scenario")
-            observation = self._simulator.reset(scenario=scenario)
+            task_id  = options.get("task_id")          # ← extract task_id from options
+
+            if scenario is not None:
+                observation = self._simulator.reset(scenario=scenario)
+            elif task_id is not None:
+                observation = self._simulator.reset(task_id=task_id)  # ← forward it
+            else:
+                observation = self._simulator.reset()
+
             self._initialized = True
             return observation
         except Exception as e:
             print("RESET ERROR:", str(e))
-            raise e
+            raise
+
     # -------------------------
     # STEP
     # -------------------------
@@ -33,7 +43,8 @@ class SmartOpsEnvironment(Environment):
             return observation
         except Exception as e:
             print("STEP ERROR:", str(e))
-            raise e
+            raise
+
     # -------------------------
     # STATE
     # -------------------------
