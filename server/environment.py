@@ -16,7 +16,9 @@ class SmartOpsEnvironment(Environment):
     # -------------------------
     def reset(self, seed=None, episode_id=None, **kwargs):
         try:
-            observation = self._simulator.reset()
+            options = kwargs.get("options", {})
+            scenario = options.get("scenario")
+            observation = self._simulator.reset(scenario=scenario)
             self._initialized = True
             return observation
         except Exception as e:

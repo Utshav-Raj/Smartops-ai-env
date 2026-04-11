@@ -24,13 +24,16 @@ class SmartOpsSimulator:
         self._step_count: int = 0
         self._task_id: str = "easy_duplicate_charge_refund"
 
-    def reset(self, task_id: Optional[str] = None) -> SmartOpsObservation:
-        if task_id is None:
-            task_id = self._task_id
-        self._task_id = task_id
-        scenario = get_task(task_id)
+    def reset(self, scenario=None, task_id: Optional[str] = None) -> SmartOpsObservation:
+        if scenario is not None:
+            self._task_id = scenario.task_id
+        else:
+            if task_id is None:
+                task_id = self._task_id
+            self._task_id = task_id
+            scenario = get_task(task_id)
         self._state = SupportState(
-            task_id=task_id,
+            task_id=self._task_id,
             task_difficulty=scenario.difficulty.value,
             tickets=copy.deepcopy(scenario.tickets),
             action_history=[],
